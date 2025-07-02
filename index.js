@@ -1,223 +1,172 @@
-import { Client, GatewayIntentBits, Partials, Collection, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, SlashCommandBuilder, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Collection, SlashCommandBuilder, REST, Routes, EmbedBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } from 'discord.js';
 import express from 'express';
 import fs from 'fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-const app = express();
-const port = 3000;
-
-app.get('/', (req, res) => res.send('Bot is running!'));
-app.listen(port, () => console.log(`Web server running on port ${port}`));
-
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildPresences,
-  ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildPresences, GatewayIntentBits.MessageContent],
+  partials: [Partials.Channel]
 });
 
-let data = {};
-if (fs.existsSync('data.json')) {
-  data = JSON.parse(fs.readFileSync('data.json'));
-}
+const app = express();
+app.get('/', (req, res) => res.send('Bot aktif!'));
+app.listen(3000, () => console.log('Web server aktif di port 3000'));
 
-function save() {
-  fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-}
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+let data = fs.existsSync('./data.json') ? JSON.parse(fs.readFileSync('./data.json')) : { users: {} };
 
-function getUser(id) {
-  if (!data[id]) {
-    data[id] = {
-      uang: 0,
-      inv: {},
-      rodLevel: 1,
-      lastClaim: 0,
-    };
-  }
-  return data[id];
-}
+const saveData = () => fs.writeFileSync('./data.json', JSON.stringify(data, null, 2));
 
-const ikanList = [
-  { nama: 'Lele', harga: 20, rarity: 'common' },
-  { nama: 'Gurame', harga: 25, rarity: 'common' },
-  { nama: 'Ikan Mas', harga: 30, rarity: 'common' },
-  { nama: 'Nila', harga: 35, rarity: 'common' },
-  { nama: 'Koi', harga: 40, rarity: 'rare' },
-  { nama: 'Ikan Badut', harga: 60, rarity: 'rare' },
-  { nama: 'Arwana', harga: 100, rarity: 'rare' },
-  { nama: 'Ikan Hiu', harga: 1000, rarity: 'super' },
-  { nama: 'Ikan Paus', harga: 2000, rarity: 'super' },
-  { nama: 'Megalodon', harga: 3000, rarity: 'super' },
-  { nama: 'Ikan Cupang', harga: 15, rarity: 'common' },
-  { nama: 'Ikan Louhan', harga: 50, rarity: 'rare' },
-  { nama: 'Ikan Terbang', harga: 45, rarity: 'rare' },
-  { nama: 'Ikan Pari', harga: 75, rarity: 'rare' },
-  { nama: 'Ikan Duyung', harga: 1500, rarity: 'super' },
-  { nama: 'Ikan Monster', harga: 5000, rarity: 'super' },
-  { nama: 'Ikan Sakura', harga: 120, rarity: 'rare' },
-  { nama: 'Ikan Salju', harga: 140, rarity: 'rare' },
-  { nama: 'Ikan Lava', harga: 170, rarity: 'rare' },
-  { nama: 'Ikan Kristal', harga: 6000, rarity: 'super' }
+const items = {
+  tools: [
+    { name: 'Pancing Kayu', price: 0, rarity: 0 },
+    { name: 'Pancing Besi', price: 500, rarity: 2 },
+    { name: 'Pancing Emas', price: 1500, rarity: 5 },
+    { name: 'Pancing Kristal', price: 5000, rarity: 7 },
+    { name: 'Pancing Legendaris', price: 10000, rarity: 10 }
+  ],
+  baits: [
+    { name: 'Umpan Biasa', price: 10 },
+    { name: 'Umpan Uang', price: 30 },
+    { name: 'Umpan Keberuntungan', price: 115 }
+  ]
+};
+
+const fishes = [
+  { name: 'Ikan Cupang', rarity: 'umum', price: 10 },
+  { name: 'Ikan Nila', rarity: 'umum', price: 12 },
+  { name: 'Ikan Lele', rarity: 'umum', price: 15 },
+  { name: 'Ikan Gabus', rarity: 'umum', price: 18 },
+  { name: 'Ikan Mujair', rarity: 'umum', price: 20 },
+  { name: 'Ikan Mas', rarity: 'umum', price: 22 },
+  { name: 'Ikan Gurame', rarity: 'umum', price: 25 },
+  { name: 'Ikan Koi', rarity: 'umum', price: 30 },
+  { name: 'Ikan Salmon', rarity: 'langka', price: 80 },
+  { name: 'Ikan Tuna', rarity: 'langka', price: 90 },
+  { name: 'Ikan Paus Kecil', rarity: 'langka', price: 120 },
+  { name: 'Ikan Duyung', rarity: 'super', price: 1000 },
+  { name: 'Ikan Legenda', rarity: 'super', price: 2000 },
+  { name: 'Ikan Hiu', rarity: 'super', price: 2500 },
+  { name: 'Ikan Emas Raksasa', rarity: 'super', price: 5000 },
+  { name: 'Ikan Naga Air', rarity: 'super', price: 7000 },
+  { name: 'Ikan Dewa Laut', rarity: 'super', price: 10000 }
 ];
 
-function getRarityEmoji(rarity) {
-  if (rarity === 'common') return '🐟';
-  if (rarity === 'rare') return '🐠';
-  return '🐉';
-}
-
-function getEmbedColor(rarity) {
-  if (rarity === 'common') return 0x95a5a6;
-  if (rarity === 'rare') return 0x3498db;
-  return 0xf1c40f;
-}
-
-function mancing(uid) {
-  const user = getUser(uid);
-  const rodBonus = user.rodLevel * 0.5;
+const getRandomFish = () => {
   const chance = Math.random() * 100;
-  let filtered;
-  if (chance < 0.5 + rodBonus) {
-    filtered = ikanList.filter(i => i.rarity === 'super');
-  } else if (chance < 10 + rodBonus) {
-    filtered = ikanList.filter(i => i.rarity === 'rare');
-  } else {
-    filtered = ikanList.filter(i => i.rarity === 'common');
+  let pool;
+  if (chance <= 0.5) pool = fishes.filter(f => f.rarity === 'super');
+  else if (chance <= 20) pool = fishes.filter(f => f.rarity === 'langka');
+  else pool = fishes.filter(f => f.rarity === 'umum');
+  const fish = pool[Math.floor(Math.random() * pool.length)];
+  const weight = Math.floor(Math.random() * 100) + 1;
+  const totalValue = fish.price + weight;
+  return { ...fish, weight, totalValue };
+};
+
+const ensureUser = (id) => {
+  if (!data.users[id]) {
+    data.users[id] = { uang: 0, inv: {}, alat: 'Pancing Kayu', bait: 0, claimed: false };
   }
-  const ikan = filtered[Math.floor(Math.random() * filtered.length)];
-  const berat = Math.floor(Math.random() * 100) + 1;
-  const hasil = { nama: ikan.nama, harga: ikan.harga, rarity: ikan.rarity, berat };
-  user.inv[ikan.nama] = (user.inv[ikan.nama] || 0) + 1;
-  return hasil;
-}
-
-client.on('ready', () => {
-  console.log(`Bot aktif sebagai ${client.user.tag}`);
-});
-
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-  const user = getUser(interaction.user.id);
-
-  if (interaction.commandName === 'pemula') {
-    if (user.inv['Umpan']) return interaction.reply({ content: 'Kamu sudah klaim!', ephemeral: true });
-    user.inv['Umpan'] = 10;
-    user.inv['Fishing Rod'] = 1;
-    interaction.reply('🎣 Kamu mendapatkan 1 Fishing Rod dan 10 Umpan!');
-  }
-
-  if (interaction.commandName === 'uang') {
-    interaction.reply(`💰 Uangmu: ${user.uang}`);
-  }
-
-  if (interaction.commandName === 'inv') {
-    const list = Object.entries(user.inv).map(([item, jml]) => `- ${item}: ${jml}`).join('\n');
-    interaction.reply(`🎒 Inventaris:\n${list}`);
-  }
-
-  if (interaction.commandName === 'jual') {
-    let total = 0;
-    for (const [nama, jml] of Object.entries(user.inv)) {
-      const ikan = ikanList.find(i => i.nama === nama);
-      if (ikan) total += ikan.harga * jml;
-    }
-    user.uang += total;
-    user.inv = {};
-    interaction.reply(`💵 Kamu menjual semua ikan dan mendapat ${total} uang!`);
-  }
-
-  if (interaction.commandName === 'mancing') {
-    if (!user.inv['Umpan'] || user.inv['Umpan'] <= 0) return interaction.reply('🎯 Kamu kehabisan umpan!');
-    user.inv['Umpan']--;
-    const hasil = mancing(interaction.user.id);
-    const embed = new EmbedBuilder()
-      .setTitle(`${getRarityEmoji(hasil.rarity)} Kamu mendapatkan ${hasil.nama}!`)
-      .setDescription(`Berat: ${hasil.berat}kg\nHarga: ${hasil.harga}`)
-      .setColor(getEmbedColor(hasil.rarity));
-    interaction.reply({ embeds: [embed] });
-  }
-
-  if (interaction.commandName === 'leaderboard') {
-    const sorted = Object.entries(data).sort((a, b) => b[1].uang - a[1].uang).slice(0, 10);
-    const desc = sorted.map(([id, d], i) => `${i + 1}. <@${id}> - 💰 ${d.uang}`).join('\n');
-    interaction.reply({ embeds: [new EmbedBuilder().setTitle('🏆 Top 10 Pemancing').setDescription(desc)] });
-  }
-
-  if (interaction.commandName === 'status') {
-    const members = await interaction.guild.members.fetch();
-    const counts = { online: 0, idle: 0, dnd: 0, offline: 0 };
-    members.forEach(m => {
-      if (!m.presence) counts.offline++;
-      else counts[m.presence.status]++;
-    });
-    const embed = new EmbedBuilder()
-      .setTitle('📊 Status Member')
-      .addFields(
-        { name: '🟢 Online', value: `${counts.online}`, inline: true },
-        { name: '🌙 Idle', value: `${counts.idle}`, inline: true },
-        { name: '⛔ DND', value: `${counts.dnd}`, inline: true },
-        { name: '⚫ Offline', value: `${counts.offline}`, inline: true }
-      )
-      .setColor(0x7289da);
-    interaction.reply({ embeds: [embed] });
-  }
-
-  if (interaction.commandName === 'toko') {
-    const embed = new EmbedBuilder()
-      .setTitle('🎣 Fishing Shop')
-      .setDescription('Beli alat & item:')
-      .addFields(
-        { name: '🎣 Fishing Rod', value: '20 uang', inline: true },
-        { name: '🧲 Umpan', value: '5 uang', inline: true }
-      )
-      .setColor(0x2ecc71);
-    interaction.reply({ embeds: [embed] });
-  }
-
-  if (interaction.commandName === 'upgrade') {
-    if (user.rodLevel >= 5) return interaction.reply('🎣 Rod kamu sudah maksimal!');
-    const cost = user.rodLevel * 100;
-    if (user.uang < cost) return interaction.reply(`💰 Butuh ${cost} uang untuk upgrade!`);
-    user.uang -= cost;
-    user.rodLevel++;
-    interaction.reply(`🔧 Rod berhasil di-upgrade ke level ${user.rodLevel}!`);
-  }
-
-  if (interaction.commandName === 'bonus') {
-    const now = Date.now();
-    if (now - user.lastClaim < 86400000) return interaction.reply('⏰ Bonus hanya bisa diklaim 1x per 24 jam.');
-    const bonus = Math.floor(Math.random() * 200) + 100;
-    user.uang += bonus;
-    user.lastClaim = now;
-    interaction.reply(`🎁 Kamu klaim bonus harian sebesar 💰${bonus}`);
-  }
-
-  save();
-});
+};
 
 const commands = [
-  new SlashCommandBuilder().setName('pemula').setDescription('Dapatkan alat & umpan awal'),
-  new SlashCommandBuilder().setName('toko').setDescription('Lihat item di toko'),
-  new SlashCommandBuilder().setName('jual').setDescription('Jual semua ikan'),
+  new SlashCommandBuilder().setName('pemula').setDescription('Ambil alat & umpan awal'),
+  new SlashCommandBuilder().setName('toko').setDescription('Lihat isi toko memancing'),
+  new SlashCommandBuilder().setName('jual').setDescription('Jual semua ikan di inventaris'),
   new SlashCommandBuilder().setName('uang').setDescription('Cek jumlah uangmu'),
-  new SlashCommandBuilder().setName('inv').setDescription('Lihat isi inventarismu'),
-  new SlashCommandBuilder().setName('mancing').setDescription('Mancing ikan dan dapatkan hadiah'),
+  new SlashCommandBuilder().setName('inv').setDescription('Lihat inventarismu'),
+  new SlashCommandBuilder().setName('mancing').setDescription('Memancing ikan!'),
   new SlashCommandBuilder().setName('leaderboard').setDescription('Lihat top 10 terkaya'),
-  new SlashCommandBuilder().setName('status').setDescription('Lihat status member server'),
-  new SlashCommandBuilder().setName('upgrade').setDescription('Upgrade fishing rod'),
-  new SlashCommandBuilder().setName('bonus').setDescription('Klaim uang bonus harian')
+  new SlashCommandBuilder().setName('status').setDescription('Lihat status member server')
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands })
-  .then(() => console.log('✅ Semua slash command telah di-register'))
-  .catch(console.error);
+await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+console.log('✅ Slash commands berhasil di-register!');
+
+client.on('ready', () => {
+  console.log(`Bot siap sebagai ${client.user.tag}`);
+});
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  const { user } = interaction;
+  ensureUser(user.id);
+  const u = data.users[user.id];
+
+  if (interaction.commandName === 'pemula') {
+    if (u.claimed) return interaction.reply({ content: '🎣 Kamu sudah pernah klaim starter pack!', ephemeral: true });
+    u.alat = 'Pancing Kayu';
+    u.bait += 5;
+    u.claimed = true;
+    saveData();
+    interaction.reply('🎁 Kamu mendapatkan Pancing Kayu dan 5 Umpan Biasa!');
+  }
+
+  else if (interaction.commandName === 'toko') {
+    const embed = new EmbedBuilder()
+      .setTitle('🎣 Toko Pancing')
+      .setColor('Green')
+      .setDescription(items.tools.map(t => `🎣 **${t.name}** - 💰 ${t.price}`).join('\n') + '\n\n' +
+                      items.baits.map(b => `🪱 **${b.name}** - 💰 ${b.price}`).join('\n'));
+
+    interaction.reply({ embeds: [embed] });
+  }
+
+  else if (interaction.commandName === 'jual') {
+    let total = 0;
+    for (let i in u.inv) {
+      total += u.inv[i];
+    }
+    u.uang += total;
+    u.inv = {};
+    saveData();
+    interaction.reply(`💰 Kamu menjual semua ikan dan mendapatkan **${total}** uang!`);
+  }
+
+  else if (interaction.commandName === 'uang') {
+    interaction.reply(`💸 Uangmu: **${u.uang}**`);
+  }
+
+  else if (interaction.commandName === 'inv') {
+    const inv = Object.entries(u.inv).map(([name, val]) => `🐟 ${name}: ${val}`).join('\n') || '❌ Tidak ada ikan';
+    interaction.reply(`🎒 Inventaris kamu:\n${inv}`);
+  }
+
+  else if (interaction.commandName === 'mancing') {
+    if (u.bait <= 0) return interaction.reply('🪱 Kamu tidak punya umpan!');
+    u.bait--;
+    const fish = getRandomFish();
+    u.inv[`${fish.name} (${fish.weight}kg)`] = (u.inv[`${fish.name} (${fish.weight}kg)`] || 0) + fish.totalValue;
+    saveData();
+    interaction.reply(`🎣 Kamu mendapatkan **${fish.name}** seberat **${fish.weight}kg** senilai **${fish.totalValue}**!`);
+  }
+
+  else if (interaction.commandName === 'leaderboard') {
+    const lb = Object.entries(data.users)
+      .map(([id, u]) => ({ id, uang: u.uang }))
+      .sort((a, b) => b.uang - a.uang)
+      .slice(0, 10);
+    const text = lb.map((u, i) => `#${i + 1} <@${u.id}> - 💰 ${u.uang}`).join('\n');
+    interaction.reply({ content: `🏆 Leaderboard Pemancing:\n${text}`, allowedMentions: { users: [] } });
+  }
+
+  else if (interaction.commandName === 'status') {
+    const members = interaction.guild.members.cache.filter(m => !m.user.bot);
+    const statusList = members.map(m => ({
+      name: m.user.username,
+      status: m.presence?.status || 'offline'
+    }));
+    const sorted = statusList.sort((a, b) => a.status.localeCompare(b.status));
+    const embed = new EmbedBuilder()
+      .setTitle('📶 Status Member')
+      .setColor('Blue')
+      .setDescription(sorted.map(u => `**${u.name}** - \`${u.status}\``).join('\n'));
+    interaction.reply({ embeds: [embed] });
+  }
+});
 
 client.login(TOKEN);
